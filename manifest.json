@@ -1,6 +1,6 @@
 {
-  "name": "StrongLifts 5x5 Pro",
-  "short_name": "SL 5x5",
+  "name": "5x5",
+  "short_name": "5x5",
   "start_url": "index.html",
   "display": "standalone",
   "background_color": "#0f172a",
