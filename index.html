@@ -21,6 +21,8 @@
             <button onclick="setWorkout('A')" class="flex-1 bg-blue-600 py-3 rounded-xl font-bold">Workout A</button>
             <button onclick="setWorkout('B')" class="flex-1 bg-blue-600 py-3 rounded-xl font-bold">Workout B</button>
         </div>
+
+
        <div id="exercises-container"></div> 
        <div class="bg-slate-800 p-4 rounded-2xl mb-6 border border-slate-700">
             <canvas id="progressChart"></canvas>
@@ -68,6 +70,38 @@
             for (let s of PLATE_SIZES) { while (rem >= s) { p.push(s); rem -= s; } }
             return p.join(', ') + ' lb/side';
         }
+        function toggleSet(exIndex, setIndex) {
+    currentWorkout[exIndex].completedSets[setIndex] = !currentWorkout[exIndex].completedSets[setIndex];
+    
+    // Update the live volume display
+    updateLiveVolume();
+
+    // Existing logging and timer logic...
+    if (currentWorkout[exIndex].completedSets.every(s => s === true)) {
+        history.push({ date: new Date().toLocaleDateString().slice(0,5), exercise: currentWorkout[exIndex].name, weight: currentWorkout[exIndex].weight });
+        localStorage.setItem('sl5x5_history', JSON.stringify(history));
+        updateChart();
+    }
+    
+    seconds = 0;
+    clearInterval(timerInterval);
+    timerInterval = setInterval(() => {
+        seconds++;
+        document.getElementById('timer-display').innerText = `Rest: ${Math.floor(seconds/60).toString().padStart(2,'0')}:${(seconds%60).toString().padStart(2,'0')}`;
+    }, 1000);
+    
+    render();
+}
+
+function updateLiveVolume() {
+    // 5 reps per set, as per standard 5x5
+    const volume = currentWorkout.reduce((total, ex) => {
+        const setsDone = ex.completedSets.filter(s => s === true).length;
+        return total + (setsDone * 5 * ex.weight);
+    }, 0);
+    
+    document.getElementById('live-volume').innerText = `Total Session Volume: ${volume} lbs`;
+}
 
         function updateChart() {
     const ctx = document.getElementById('progressChart').getContext('2d');
@@ -141,12 +175,24 @@ function toggleSet(exIndex, setIndex) {
     
     render();
 }
-        function render() {
+function render() {
+    // Calculate volume here so it's always up to date
+    const volume = currentWorkout.reduce((total, ex) => {
+        const setsDone = ex.completedSets.filter(s => s === true).length;
+        return total + (setsDone * 5 * ex.weight);
+    }, 0);
+
     document.getElementById('exercises-container').innerHTML = `
+        <div id="live-volume" class="text-center text-lg font-bold text-blue-400 mb-4">
+            Total Session Volume: ${volume} lbs
+        </div>
         ${currentWorkout.map((ex, exIndex) => `
             <div class="bg-slate-800 p-5 rounded-2xl mb-4 border border-slate-700">
                 <div class="flex justify-between items-center mb-2">
-                    <div><h2 class="text-lg font-bold">${ex.name} (${ex.weight} lbs)</h2><p class="text-[10px] text-gray-400 uppercase tracking-widest">${calculatePlates(ex.weight)}</p></div>
+                    <div>
+                        <h2 class="text-lg font-bold">${ex.name} (${ex.weight} lbs)</h2>
+                        <p class="text-[10px] text-gray-400 uppercase tracking-widest">${calculatePlates(ex.weight)}</p>
+                    </div>
                     <div class="flex gap-2">
                         <button onclick="updateWeight(${exIndex}, -5)" class="bg-slate-700 w-8 h-8 rounded-lg font-bold">-</button>
                         <button onclick="updateWeight(${exIndex}, 5)" class="bg-slate-700 w-8 h-8 rounded-lg font-bold">+</button>
@@ -159,56 +205,6 @@ function toggleSet(exIndex, setIndex) {
         `).join('')}
         <button onclick="finishWorkout()" class="w-full bg-green-600 py-4 rounded-xl font-black text-lg mb-8">FINISH WORKOUT</button>
     `;
-}
-
-        updateChart();
-    </script>
-</body>
-</html>    // 2. Logic to record history if all sets done
-    if (currentWorkout[exIndex].completedSets.every(s => s === true)) {
-        history.push({ date: new Date().toLocaleDateString().slice(0,5), exercise: currentWorkout[exIndex].name, weight: currentWorkout[exIndex].weight });
-        localStorage.setItem('sl5x5_history', JSON.stringify(history));
-        updateChart();
-    }
-    
-    // 3. Reset and start timer
-    seconds = 0;
-    clearInterval(timerInterval); // Stop previous timer
-    document.getElementById('timer-display').innerText = `Rest: 00:00`;
-    
-    timerInterval = setInterval(() => {
-        seconds++;
-        const mins = Math.floor(seconds / 60);
-        const secs = seconds % 60;
-        document.getElementById('timer-display').innerText = 
-            `Rest: ${mins.toString().padStart(2,'0')}:${secs.toString().padStart(2,'0')}`;
-    }, 1000);
-    
-    render();
-}
-        function render() {
-    document.getElementById('exercises-container').innerHTML = currentWorkout.map((ex, exIndex) => `
-        <div class="bg-slate-800 p-5 rounded-2xl mb-4 border border-slate-700">
-            <div class="flex justify-between items-center mb-2">
-                <div>
-                    <h2 class="text-lg font-bold">${ex.name} (${ex.weight} lbs)</h2>
-                    <p class="text-[10px] text-gray-400 uppercase tracking-widest">${calculatePlates(ex.weight)}</p>
-                </div>
-                <div class="flex gap-2">
-                    <button onclick="updateWeight(${exIndex}, -5)" class="bg-slate-700 w-8 h-8 rounded-lg font-bold">-</button>
-                    <button onclick="updateWeight(${exIndex}, 5)" class="bg-slate-700 w-8 h-8 rounded-lg font-bold">+</button>
-                </div>
-            </div>
-            <div class="flex gap-2">
-                ${ex.completedSets.map((c, sIndex) => `
-                    <button onclick="toggleSet(${exIndex}, ${sIndex})" 
-                            class="w-10 h-10 rounded-lg font-bold ${c ? 'bg-blue-600' : 'bg-slate-700'}">
-                        ${sIndex + 1}
-                    </button>
-                `).join('')}
-            </div>
-        </div>
-    `).join('');
 }
 
         updateChart();
