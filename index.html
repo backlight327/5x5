@@ -45,11 +45,31 @@
         let chart;
 
         function updateWeight(exIndex, change) {
-            const type = currentWorkout.find(e => e.name === 'Deadlift') ? 'B' : 'A';
-            savedWeights[type][exIndex].weight += change;
-            localStorage.setItem('sl5x5_weights', JSON.stringify(savedWeights));
-            setWorkout(type);
-        }
+    // 1. Identify which workout type we are currently in
+    const type = currentWorkout.find(e => e.name === 'Deadlift') ? 'B' : 'A';
+    
+    // 2. Update the weight in the savedWeights object
+    savedWeights[type][exIndex].weight += change;
+   
+    // This tells the app: "If you have saved weights, use them; otherwise, use these defaults"
+let savedWeights = JSON.parse(localStorage.getItem('sl5x5_weights')) || {
+    'A': [
+        { name: 'Squat', weight: 135, sets: 5 },
+        { name: 'Bench Press', weight: 95, sets: 5 },
+        { name: 'Barbell Row', weight: 95, sets: 5 }
+    ],
+    'B': [
+        { name: 'Squat', weight: 135, sets: 5 },
+        { name: 'Overhead Press', weight: 65, sets: 5 },
+        { name: 'Deadlift', weight: 185, sets: 1 }
+    ]
+};
+    // 3. FORCE SAVE to localStorage so it persists
+    localStorage.setItem('sl5x5_weights', JSON.stringify(savedWeights));
+    
+    // 4. Re-render
+    setWorkout(type);
+}
         function finishWorkout() {
             let totalVolume = currentWorkout.reduce((acc, ex) => {
                 const completedReps = ex.completedSets.filter(s => s === true).length * 5; // 5 reps per set
