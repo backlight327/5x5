@@ -37,12 +37,20 @@
         let currentWorkout = [], seconds = 0, timerInterval, chart;
 
         function updateWeight(exIndex, change) {
-            const type = currentWorkout.find(e => e.name === 'Deadlift') ? 'B' : 'A';
-            savedWeights[type][exIndex].weight += change;
-            localStorage.setItem('sl5x5_weights', JSON.stringify(savedWeights));
-            setWorkout(type);
-        }
-
+    // 1. Determine if we are in A or B
+    // We check the first exercise's name or if 'Deadlift' exists
+    const isWorkoutB = currentWorkout.some(ex => ex.name === 'Deadlift');
+    const type = isWorkoutB ? 'B' : 'A';
+    
+    // 2. Update the master savedWeights object
+    savedWeights[type][exIndex].weight += change;
+    
+    // 3. Persist to localStorage immediately
+    localStorage.setItem('sl5x5_weights', JSON.stringify(savedWeights));
+    
+    // 4. Refresh the workout data to include the new weight
+    setWorkout(type);
+}
         function calculatePlates(w) {
             let rem = (w - BAR_WEIGHT) / 2;
             if (rem <= 0) return "Bar only";
