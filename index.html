@@ -3,31 +3,24 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>5x5</title>
+    <title>StrongLifts 5x5</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <link rel="manifest" href="manifest.json">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="StrongLifts 5x5">
 </head>
 <body class="bg-slate-900 text-white min-h-screen p-4 font-sans">
     <div class="max-w-sm mx-auto">
         <h1 class="text-3xl font-bold mb-4 text-center" id="timer-display">Rest: 00:00</h1>
         
-        
+        <div class="bg-slate-800 p-4 rounded-2xl mb-6 border border-slate-700">
+            <canvas id="progressChart"></canvas>
+        </div>
 
         <div class="flex gap-4 mb-6">
             <button onclick="setWorkout('A')" class="flex-1 bg-blue-600 py-3 rounded-xl font-bold">Workout A</button>
             <button onclick="setWorkout('B')" class="flex-1 bg-blue-600 py-3 rounded-xl font-bold">Workout B</button>
         </div>
 
-
-       <div id="exercises-container"></div> 
-       <div class="bg-slate-800 p-4 rounded-2xl mb-6 border border-slate-700">
-            <canvas id="progressChart"></canvas>
-        </div>
-        
+        <div id="exercises-container"></div>
     </div>
 
     <script>
@@ -41,48 +34,15 @@
             'B': [{ name: 'Squat', weight: 135, sets: 5 }, { name: 'Overhead Press', weight: 65, sets: 5 }, { name: 'Deadlift', weight: 185, sets: 1 }]
         };
 
-        let currentWorkout = [];
-        let chart;
+        let currentWorkout = [], seconds = 0, timerInterval, chart;
 
         function updateWeight(exIndex, change) {
-    // 1. Identify which workout type we are currently in
-    const type = currentWorkout.find(e => e.name === 'Deadlift') ? 'B' : 'A';
-    
-    // 2. Update the weight in the savedWeights object
-    savedWeights[type][exIndex].weight += change;
-   
-    // This tells the app: "If you have saved weights, use them; otherwise, use these defaults"
-let savedWeights = JSON.parse(localStorage.getItem('sl5x5_weights')) || {
-    'A': [
-        { name: 'Squat', weight: 135, sets: 5 },
-        { name: 'Bench Press', weight: 95, sets: 5 },
-        { name: 'Barbell Row', weight: 95, sets: 5 }
-    ],
-    'B': [
-        { name: 'Squat', weight: 135, sets: 5 },
-        { name: 'Overhead Press', weight: 65, sets: 5 },
-        { name: 'Deadlift', weight: 185, sets: 1 }
-    ]
-};
-    // 3. FORCE SAVE to localStorage so it persists
-    localStorage.setItem('sl5x5_weights', JSON.stringify(savedWeights));
-    
-    // 4. Re-render
-    setWorkout(type);
-}
-        function finishWorkout() {
-            let totalVolume = currentWorkout.reduce((acc, ex) => {
-                const completedReps = ex.completedSets.filter(s => s === true).length * 5; // 5 reps per set
-                return acc + (completedReps * ex.weight);
-            }, 0);
-            
-            alert(`Workout Complete! Total Volume: ${totalVolume} lbs`);
-            
-            // Optional: Log this volume to localStorage history if you want to track it
-            history.push({ date: new Date().toLocaleDateString().slice(0,5), exercise: 'Total Volume', weight: totalVolume });
-            localStorage.setItem('sl5x5_history', JSON.stringify(history));
-            updateChart();
+            const type = currentWorkout.find(e => e.name === 'Deadlift') ? 'B' : 'A';
+            savedWeights[type][exIndex].weight += change;
+            localStorage.setItem('sl5x5_weights', JSON.stringify(savedWeights));
+            setWorkout(type);
         }
+
         function calculatePlates(w) {
             let rem = (w - BAR_WEIGHT) / 2;
             if (rem <= 0) return "Bar only";
@@ -90,143 +50,65 @@ let savedWeights = JSON.parse(localStorage.getItem('sl5x5_weights')) || {
             for (let s of PLATE_SIZES) { while (rem >= s) { p.push(s); rem -= s; } }
             return p.join(', ') + ' lb/side';
         }
-        function toggleSet(exIndex, setIndex) {
-    currentWorkout[exIndex].completedSets[setIndex] = !currentWorkout[exIndex].completedSets[setIndex];
-    
-    // Update the live volume display
-    updateLiveVolume();
-
-    // Existing logging and timer logic...
-    if (currentWorkout[exIndex].completedSets.every(s => s === true)) {
-        history.push({ date: new Date().toLocaleDateString().slice(0,5), exercise: currentWorkout[exIndex].name, weight: currentWorkout[exIndex].weight });
-        localStorage.setItem('sl5x5_history', JSON.stringify(history));
-        updateChart();
-    }
-    
-    seconds = 0;
-    clearInterval(timerInterval);
-    timerInterval = setInterval(() => {
-        seconds++;
-        document.getElementById('timer-display').innerText = `Rest: ${Math.floor(seconds/60).toString().padStart(2,'0')}:${(seconds%60).toString().padStart(2,'0')}`;
-    }, 1000);
-    
-    render();
-}
-
-function updateLiveVolume() {
-    // 5 reps per set, as per standard 5x5
-    const volume = currentWorkout.reduce((total, ex) => {
-        const setsDone = ex.completedSets.filter(s => s === true).length;
-        return total + (setsDone * 5 * ex.weight);
-    }, 0);
-    
-    document.getElementById('live-volume').innerText = `Total Session Volume: ${volume} lbs`;
-}
-
-        function updateChart() {
-    const ctx = document.getElementById('progressChart').getContext('2d');
-    if (chart) chart.destroy();
-    
-    // Filter history to ONLY show actual lifts (exclude 'Total Volume')
-    const liftHistory = history.filter(h => h.exercise !== 'Total Volume');
-    const labels = [...new Set(liftHistory.map(h => h.date))].sort();
-    const exercises = [...new Set(liftHistory.map(h => h.exercise))];
-
-    chart = new Chart(ctx, {
-        type: 'line',
-        data: { 
-            labels, 
-            datasets: exercises.map(ex => ({ 
-                label: ex, 
-                data: labels.map(d => liftHistory.find(h => h.date === d && h.exercise === ex)?.weight || null), 
-                borderColor: EXERCISE_COLORS[ex] || '#ffffff',
-                spanGaps: true 
-            })) 
-        },
-        options: { 
-            responsive: true, 
-            plugins: { legend: { labels: { color: 'white' } } },
-            scales: { y: { beginAtZero: false } }
-        }
-    });
-}
 
         function toggleSet(exIndex, setIndex) {
             currentWorkout[exIndex].completedSets[setIndex] = !currentWorkout[exIndex].completedSets[setIndex];
+            
             if (currentWorkout[exIndex].completedSets.every(s => s === true)) {
                 history.push({ date: new Date().toLocaleDateString().slice(0,5), exercise: currentWorkout[exIndex].name, weight: currentWorkout[exIndex].weight });
                 localStorage.setItem('sl5x5_history', JSON.stringify(history));
                 updateChart();
             }
+            
+            seconds = 0;
+            clearInterval(timerInterval);
+            timerInterval = setInterval(() => {
+                seconds++;
+                document.getElementById('timer-display').innerText = `Rest: ${Math.floor(seconds/60).toString().padStart(2,'0')}:${(seconds%60).toString().padStart(2,'0')}`;
+            }, 1000);
+            
             render();
+        }
+
+        function finishWorkout() {
+            let totalVolume = currentWorkout.reduce((acc, ex) => acc + (ex.completedSets.filter(s => s === true).length * 5 * ex.weight), 0);
+            alert(`Workout Complete! Total Volume: ${totalVolume} lbs`);
+        }
+
+        function updateChart() {
+            const ctx = document.getElementById('progressChart').getContext('2d');
+            if (chart) chart.destroy();
+            const liftHistory = history.filter(h => h.exercise !== 'Total Volume');
+            const labels = [...new Set(liftHistory.map(h => h.date))].sort();
+            const exercises = [...new Set(liftHistory.map(h => h.exercise))];
+            chart = new Chart(ctx, {
+                type: 'line',
+                data: { labels, datasets: exercises.map(ex => ({ label: ex, data: labels.map(d => liftHistory.find(h => h.date === d && h.exercise === ex)?.weight || null), borderColor: EXERCISE_COLORS[ex], spanGaps: true })) },
+                options: { responsive: true, plugins: { legend: { labels: { color: 'white' } } } }
+            });
         }
 
         function setWorkout(type) {
             currentWorkout = savedWeights[type].map(ex => ({ ...ex, completedSets: Array(ex.sets).fill(false) }));
             render();
         }
-// Add this variable at the top with your other variables if it's missing
-let seconds = 0;
-let timerInterval;
 
-function toggleSet(exIndex, setIndex) {
-    // 1. Update set state
-    currentWorkout[exIndex].completedSets[setIndex] = !currentWorkout[exIndex].completedSets[setIndex];
-    
-    // 2. Logic to record history if all sets done
-    if (currentWorkout[exIndex].completedSets.every(s => s === true)) {
-        history.push({ date: new Date().toLocaleDateString().slice(0,5), exercise: currentWorkout[exIndex].name, weight: currentWorkout[exIndex].weight });
-        localStorage.setItem('sl5x5_history', JSON.stringify(history));
-        updateChart();
-    }
-    
-    // 3. Reset and start timer
-    seconds = 0;
-    clearInterval(timerInterval); // Stop previous timer
-    document.getElementById('timer-display').innerText = `Rest: 00:00`;
-    
-    timerInterval = setInterval(() => {
-        seconds++;
-        const mins = Math.floor(seconds / 60);
-        const secs = seconds % 60;
-        document.getElementById('timer-display').innerText = 
-            `Rest: ${mins.toString().padStart(2,'0')}:${secs.toString().padStart(2,'0')}`;
-    }, 1000);
-    
-    render();
-}
-function render() {
-    // Calculate volume here so it's always up to date
-    const volume = currentWorkout.reduce((total, ex) => {
-        const setsDone = ex.completedSets.filter(s => s === true).length;
-        return total + (setsDone * 5 * ex.weight);
-    }, 0);
-
-    document.getElementById('exercises-container').innerHTML = `
-        <div id="live-volume" class="text-center text-lg font-bold text-blue-400 mb-4">
-            Total Session Volume: ${volume} lbs
-        </div>
-        ${currentWorkout.map((ex, exIndex) => `
-            <div class="bg-slate-800 p-5 rounded-2xl mb-4 border border-slate-700">
-                <div class="flex justify-between items-center mb-2">
-                    <div>
-                        <h2 class="text-lg font-bold">${ex.name} (${ex.weight} lbs)</h2>
-                        <p class="text-[10px] text-gray-400 uppercase tracking-widest">${calculatePlates(ex.weight)}</p>
+        function render() {
+            const volume = currentWorkout.reduce((total, ex) => total + (ex.completedSets.filter(s => s === true).length * 5 * ex.weight), 0);
+            document.getElementById('exercises-container').innerHTML = `
+                <div id="live-volume" class="text-center text-lg font-bold text-blue-400 mb-4">Total Session Volume: ${volume} lbs</div>
+                ${currentWorkout.map((ex, exIndex) => `
+                    <div class="bg-slate-800 p-5 rounded-2xl mb-4 border border-slate-700">
+                        <div class="flex justify-between items-center mb-2">
+                            <div><h2 class="text-lg font-bold">${ex.name} (${ex.weight} lbs)</h2><p class="text-[10px] text-gray-400 uppercase tracking-widest">${calculatePlates(ex.weight)}</p></div>
+                            <div class="flex gap-2"><button onclick="updateWeight(${exIndex}, -5)" class="bg-slate-700 w-8 h-8 rounded-lg font-bold">-</button><button onclick="updateWeight(${exIndex}, 5)" class="bg-slate-700 w-8 h-8 rounded-lg font-bold">+</button></div>
+                        </div>
+                        <div class="flex gap-2">${ex.completedSets.map((c, sIndex) => `<button onclick="toggleSet(${exIndex}, ${sIndex})" class="w-10 h-10 rounded-lg font-bold ${c ? 'bg-blue-600' : 'bg-slate-700'}">${sIndex + 1}</button>`).join('')}</div>
                     </div>
-                    <div class="flex gap-2">
-                        <button onclick="updateWeight(${exIndex}, -5)" class="bg-slate-700 w-8 h-8 rounded-lg font-bold">-</button>
-                        <button onclick="updateWeight(${exIndex}, 5)" class="bg-slate-700 w-8 h-8 rounded-lg font-bold">+</button>
-                    </div>
-                </div>
-                <div class="flex gap-2">
-                    ${ex.completedSets.map((c, sIndex) => `<button onclick="toggleSet(${exIndex}, ${sIndex})" class="w-10 h-10 rounded-lg font-bold ${c ? 'bg-blue-600' : 'bg-slate-700'}">${sIndex + 1}</button>`).join('')}
-                </div>
-            </div>
-        `).join('')}
-        <button onclick="finishWorkout()" class="w-full bg-green-600 py-4 rounded-xl font-black text-lg mb-8">FINISH WORKOUT</button>
-    `;
-}
-
+                `).join('')}
+                <button onclick="finishWorkout()" class="w-full bg-green-600 py-4 rounded-xl font-black text-lg mb-8">FINISH WORKOUT</button>
+            `;
+        }
         updateChart();
     </script>
 </body>
