@@ -37,18 +37,16 @@
         let currentWorkout = [], seconds = 0, timerInterval, chart;
 
         function updateWeight(exIndex, change) {
-    // 1. Determine if we are in A or B
-    // We check the first exercise's name or if 'Deadlift' exists
-    const isWorkoutB = currentWorkout.some(ex => ex.name === 'Deadlift');
-    const type = isWorkoutB ? 'B' : 'A';
+    // 1. Identify which workout type we are currently in
+    const type = currentWorkout.some(e => e.name === 'Deadlift') ? 'B' : 'A';
     
-    // 2. Update the master savedWeights object
+    // 2. Update the weight in the existing global savedWeights object
     savedWeights[type][exIndex].weight += change;
     
-    // 3. Persist to localStorage immediately
+    // 3. Save the global object to localStorage
     localStorage.setItem('sl5x5_weights', JSON.stringify(savedWeights));
     
-    // 4. Refresh the workout data to include the new weight
+    // 4. Re-render the UI with the updated state
     setWorkout(type);
 }
         function calculatePlates(w) {
