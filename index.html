@@ -11,16 +11,18 @@
     <div class="max-w-sm mx-auto">
         <h1 class="text-3xl font-bold mb-4 text-center" id="timer-display">Rest: 00:00</h1>
         
-        <div class="bg-slate-800 p-4 rounded-2xl mb-6 border border-slate-700">
-            <canvas id="progressChart"></canvas>
-        </div>
+       
 
         <div class="flex gap-4 mb-6">
             <button onclick="setWorkout('A')" class="flex-1 bg-blue-600 py-3 rounded-xl font-bold">Workout A</button>
             <button onclick="setWorkout('B')" class="flex-1 bg-blue-600 py-3 rounded-xl font-bold">Workout B</button>
         </div>
 
-        <div id="exercises-container"></div>
+        <div id="exercises-container"></div> 
+        
+        <div class="bg-slate-800 p-4 rounded-2xl mb-6 border border-slate-700">
+            <canvas id="progressChart"></canvas>
+        </div>
     </div>
 
     <script>
